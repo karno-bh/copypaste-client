@@ -1,5 +1,17 @@
 2019-02-01
     CONTINUE:
+        1. Bugs?
+    Done:
+        1. Functionality without requesting some specific file is implemented
+        2. Save Service is implemented in another thread to not block retrieving from server
+    TODO:
+        1. Write docs
+        2. Write javadocs
+        3. More test...???
+        4. Write readme!!!
+
+2019-02-01
+    CONTINUE:
         1. Start writing code
     Done:
         1. Project initialized

@@ -26,7 +26,8 @@ public class Application {
     private static final Logger log = LoggerFactory.getLogger(Application.class);
 
     private final Map<String, Predicate<String>> knownValuesValidator = new HashMap<String, Predicate<String>>() {{
-        put(Global.TIME_OUT_MS_KEY, Application::validateRequestTimeout);
+        put(Global.TIME_OUT_MS_KEY, Application::greaterThanZeroInt);
+        put(Global.RETRIES_NUMBER_KEY, Application::greaterThanZeroInt);
     }};
 
     public static void main(String[] args) {
@@ -65,6 +66,7 @@ public class Application {
         Map<String, String> config = new HashMap<>();
         config.put(Global.SERVER_URL_KEY, Global.SERVER_URL);
         config.put(Global.TIME_OUT_MS_KEY, "60000");
+        config.put(Global.RETRIES_NUMBER_KEY, "3");
         return config;
     }
 
@@ -104,12 +106,12 @@ public class Application {
         return validator == null || validator.test(value);
     }
 
-    private static boolean validateRequestTimeout(String value) {
+    private static boolean greaterThanZeroInt(String value) {
         int timeout = -1;
         try {
             timeout = Integer.parseInt(value);
         } catch (NumberFormatException nfe) {
-            log.warn("Cannot parse timeout");
+            log.warn("Cannot parse value");
         }
         return timeout > 0;
     }
