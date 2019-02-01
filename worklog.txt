@@ -1,0 +1,12 @@
+2019-02-01
+    CONTINUE:
+        1. Start writing code
+    Done:
+        1. Project initialized
+        2. Some working HttpClient connection
+    TODO:
+        1. The idea of the project is to use simple coded single threaded spring boot application.  
+        2. check how to configure SLF4J
+        3. Write javadocs
+        4. More test...???
+        5. Write readme!!!
