@@ -1,3 +1,12 @@
+2019-02-03
+    CONTINUE:
+        1. Bugs?
+    Done:
+        1. Some bugs fixed.
+        2. Refactoring... for modularity
+    TODO:
+        1. Write readme!!!
+
 2019-02-01
     CONTINUE:
         1. Bugs?

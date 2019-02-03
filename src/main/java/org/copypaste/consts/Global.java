@@ -1,5 +1,8 @@
 package org.copypaste.consts;
 
+/**
+ * Global constants used in program
+ */
 public interface Global {
 
     String SERVER_URL = "http://localhost:8080";
@@ -19,6 +22,11 @@ public interface Global {
     String TIME_OUT_MS_KEY = "time_out_ms";
 
     String RETRIES_NUMBER_KEY = "retries_number";
+
+    // 2 MIN
+    String TIME_OUT_MS_VAL = "120000";
+
+    String RETRIES_NUMBER_VAL = "3";
 
     String FILE_PARAM = "file";
 

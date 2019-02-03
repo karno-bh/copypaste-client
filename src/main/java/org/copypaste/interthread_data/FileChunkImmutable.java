@@ -1,11 +1,15 @@
 package org.copypaste.interthread_data;
 
-import org.copypaste.data.ChunkResponse;
 import org.copypaste.data.FileChunk;
 
 import java.util.Base64;
-import java.util.Objects;
 
+/**
+ *
+ * Immutable files chunk DTO. Immutability is chosen as inter-thread safe data passing.
+ *
+ * @author Sergey
+ */
 public class FileChunkImmutable {
 
     private final boolean hasNextChunk;

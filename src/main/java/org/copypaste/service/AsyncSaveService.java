@@ -15,6 +15,23 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * The "Consumer" of gotten chunks. Implemented as a daemon thread. The thread is defined to be daemon because in the case
+ * of failure of the main thread it will need to be signalized somehow that application is about to shutdown. However,
+ * if it is blocked on the queue it will never get the signal and process will not be down.<br/>
+ * Once the file name is set to this object it creates a temp file.
+ * It reads on demand the incoming queue in case there is a work chunk it:
+ * <ol>
+ * <li>Decode the chunk data by Base64</li>
+ * <li>Compare the checksum of the chunk</li>
+ * <li>If the chunk check sum is "bad" it drops</li>
+ * </ol>
+ * Once it has got all the chunks
+ * <ol>
+ * <li>The file is checked against the overall checksum if it fails it drops and file deleted</li>
+ * <li>On success check the file is renamed to real name</li>
+ * </ol>
+ */
 @Service
 public class AsyncSaveService implements Runnable {
 
@@ -124,6 +141,7 @@ public class AsyncSaveService implements Runnable {
     }
 
     public void clearTemp() {
+        closeTempFile();
         File tempFile = Paths.get(Global.INCOMING_DIRECTORY, tempFileName).toFile();
         if (tempFile.exists()) {
             boolean deleted = tempFile.delete();
@@ -137,6 +155,7 @@ public class AsyncSaveService implements Runnable {
         try {
             if (tempRandomAccessFile != null) {
                 tempRandomAccessFile.close();
+                tempRandomAccessFile = null;
             }
         } catch (IOException ignore) {
             log.error("Cannot close temp file");

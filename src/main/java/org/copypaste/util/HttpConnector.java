@@ -6,19 +6,21 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.copypaste.data.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ *
+ * Utility class that connects to server with given URL and endpoint. It does not create HttpClient but expects it as
+ * input
+ *
+ * @param <T> type of the Response object. Passed as parameter to the builder factory method
+ */
 public class HttpConnector<T extends Response> {
 
     private static final Logger log = LoggerFactory.getLogger(HttpConnector.class);
@@ -74,26 +76,31 @@ public class HttpConnector<T extends Response> {
 
 
     public T execute() {
-        // try (CloseableHttpClient client = HttpClients.createDefault()) {
+
         try {
             RequestConfig custom = RequestConfig.custom()
                     .setConnectionRequestTimeout(timeOutMS)
                     .setConnectTimeout(timeOutMS)
                     .setSocketTimeout(timeOutMS)
                     .build();
-            HttpGet getMeta = new HttpGet(constructURL());
+            GetMethodUrlConstructor constructor = new GetMethodUrlConstructor();
+            HttpGet getMeta = new HttpGet(constructor.construct(serverUrl, endPoint, params));
             getMeta.setConfig(custom);
             try (CloseableHttpResponse response = httpClient.execute(getMeta)) {
                 if (response.getStatusLine().getStatusCode() != 200) {
                     throw new IllegalStateException("Response status != 200");
                 }
                 HttpEntity entity = response.getEntity();
-                String result = readContent(entity);
-                // System.out.println("Result" + result);
+
+                String result;
+                try(GuardedInputStreamConverter converter =
+                            GuardedInputStreamConverter.asDefault()
+                                    .inputStream(entity.getContent())
+                                    .maxBuffer(maxBuffer).build()) {
+                    result = converter.readContent();
+                }
+
                 ObjectMapper objectMapper = new ObjectMapper();
-                //T responseObject = objectMapper.readValue(result, resultClass);
-                // System.out.println(responseObject);
-                //return responseObject;
                 return objectMapper.readValue(result, resultClass);
             }
         } catch(IOException ioe) {
@@ -113,71 +120,6 @@ public class HttpConnector<T extends Response> {
         } while (retry++ < retries);
         throw new RuntimeException("Failed to retrieve from end point: " + endPoint + ". Giving up");
     }
-
-    private String constructURL() {
-        StringBuilder sb = new StringBuilder(128);
-        sb.append(serverUrl).append(endPoint);
-        if (params == null) {
-            return sb.toString();
-        }
-        sb.append('?');
-        boolean first = true;
-        for (Map.Entry<String, String> parameter : params.entrySet()) {
-            String prefix;
-            if (first) {
-                prefix = "";
-                first = false;
-            } else {
-                prefix = "&";
-            }
-            sb.append(prefix);
-            sb.append(parameter.getKey()).append('=').append(encodeURI(parameter.getValue()));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * From here: https://stackoverflow.com/questions/607176/java-equivalent-to-javascripts-encodeuricomponent-that-produces-identical-outpu
-     *
-     * @param s
-     * @return
-     */
-    private String encodeURI(String s) {
-        String result;
-        try {
-            result = URLEncoder.encode(s, "UTF-8")
-                    .replaceAll("\\+", "%20")
-                    .replaceAll("\\%21", "!")
-                    .replaceAll("\\%27", "'")
-                    .replaceAll("\\%28", "(")
-                    .replaceAll("\\%29", ")")
-                    .replaceAll("\\%7E", "~");
-        } catch (UnsupportedEncodingException e) {
-            result = s;
-        }
-        return result;
-    }
-
-    private String readContent(HttpEntity httpEntity) throws IOException{
-        try (InputStream content = new BufferedInputStream(httpEntity.getContent())) {
-            char[] buffer = new char[1024];
-            int pos = 0;
-            int aByte;
-            while((aByte = content.read()) != -1) {
-                if (pos == buffer.length) {
-                    char[] newBuf = new char[buffer.length * 2];
-                    System.arraycopy(buffer, 0, newBuf, 0, buffer.length);
-                    buffer = newBuf;
-                } else if (pos > maxBuffer) {
-                    throw new RuntimeException("Too long response, dropping");
-                }
-                buffer[pos++] = (char)aByte;
-            }
-            return new String(buffer, 0, pos + 1);
-        }
-    }
-
-
 
     public static class Builder<U extends Response> {
 

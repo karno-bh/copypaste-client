@@ -65,8 +65,8 @@ public class Application {
     private Map<String, String> defaultConfiguration() {
         Map<String, String> config = new HashMap<>();
         config.put(Global.SERVER_URL_KEY, Global.SERVER_URL);
-        config.put(Global.TIME_OUT_MS_KEY, "60000");
-        config.put(Global.RETRIES_NUMBER_KEY, "3");
+        config.put(Global.TIME_OUT_MS_KEY, Global.TIME_OUT_MS_VAL);
+        config.put(Global.RETRIES_NUMBER_KEY, Global.RETRIES_NUMBER_VAL);
         return config;
     }
 

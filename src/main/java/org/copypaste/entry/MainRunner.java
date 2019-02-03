@@ -17,14 +17,29 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.text.MessageFormat;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Main algorithm executor.
+ * <ul>
+ * <li>If the incoming directory does not exists it creates it</li>
+ * <li>The algorithm is as following: first, it tries to get the available files from server. As the second step it gets
+ * chunk by chunk the file. Each chunk it gets is being put for async saver thread to not block the chunk getting.
+ * As well, in case the queue of saver is full it will block in order to not inflate the memory.</li>
+ * <li>Technically it works on Apache HttpClient it <b>reuses</b> the same Client. It is done from the reason to
+ * preserve HTTP connection.
+ * From their documentation: <a href="https://hc.apache.org/httpcomponents-client-ga/tutorial/html/connmgmt.html#d5e425">
+ * Connection keep alive strategy</a> the client caches open http connections by default</li>
+ * </ul>
+ *
+ * @author Sergey
+ */
 @Service
-public class MainRunner implements CommandLineRunner{
+public class MainRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(MainRunner.class);
 
@@ -46,13 +61,14 @@ public class MainRunner implements CommandLineRunner{
 
         createIncomingIfAbsent();
 
-        Thread asyncThread = asyncSaveService.startAndWaitForInput();
-
         int timeout = Integer.parseInt(configMap.get(Global.TIME_OUT_MS_KEY));
         int retries = Integer.parseInt(configMap.get(Global.RETRIES_NUMBER_KEY));
 
         CloseableHttpClient httpClient = null;
+        FileSummary newestFileSummary;
+        Thread asyncThread;
 
+        boolean lastFileMetaGot = false;
         try {
             httpClient = HttpClients.createDefault();
             HttpConnector<FileMetaResponse> fileMetaResponseHttpConnector =
@@ -71,12 +87,31 @@ public class MainRunner implements CommandLineRunner{
                 throw new RuntimeException("Cannot retrieve metadata");
             }
             List<FileSummary> fileSummaries = fileMetaResponse.getPayload();
-            FileSummary newestFileSummary = fileSummaries.get(fileSummaries.size() - 1);
+            newestFileSummary = fileSummaries.get(fileSummaries.size() - 1);
+            String newestFileName = newestFileSummary.getName();
+            if (Paths.get(Global.INCOMING_DIRECTORY, newestFileName).toFile().exists()) {
+                log.warn("The last available file {} already exists. Dropping.", newestFileName);
+                return;
+            }
+
+            lastFileMetaGot = true;
+        } finally {
+            // I want to reuse the httpClient if it is not the method "return" or "exception"
+            if (!lastFileMetaGot && httpClient != null) {
+                try {
+                    httpClient.close();
+                } catch (Exception e) {
+                    log.error("Cannot close HttpClient", e);
+                }
+            }
+        }
+
+        try {
             log.info("Newest file: {}", newestFileSummary.getName());
+            asyncThread = asyncSaveService.startAndWaitForInput();
 
             asyncSaveService.setFileName(newestFileSummary.getName());
             asyncSaveService.setFileCheckSum(newestFileSummary.getCheckSum());
-
 
             boolean hasNextChunk = true;
             int chunkNum = 0;
@@ -106,15 +141,20 @@ public class MainRunner implements CommandLineRunner{
                 asyncSaveService.put(fileChunkImmutable);
                 hasNextChunk = fileChunk.isHasNextChunk();
             }
-        } finally {
-            if (httpClient != null) {
-                httpClient.close();
-            }
+
             if (asyncSaveService.getThrowable() == null) {
+                // need to wait till saver will finish
                 asyncThread.join();
                 /*if (asyncSaveService.getThrowable() != null) {
                     ???
                 }*/
+            }
+        } finally {
+            try {
+                // client here cannot be null, no need to check for null
+                httpClient.close();
+            } catch (Exception e) {
+                log.error("Cannot close HttpClient", e);
             }
             asyncSaveService.clearTemp();
         }
@@ -133,5 +173,7 @@ public class MainRunner implements CommandLineRunner{
             }
         }
     }
+
+
 
 }
