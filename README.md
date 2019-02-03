@@ -1,11 +1,11 @@
 # Design & Notes
-# High Level Overview
+## High Level Overview
 Overall design points are pretty similar to the server design, i.e. Spring Boot is used as a platform. Although it is
 possible to write the code within standard JDK but having a DI container is a benefit. Also, as it is with server,
 logger functionality is already preconfigured and Spring Boot generates an uber jar as its output which is a result of
 requirements for the task (deploy everywhere). Summarizing the said above, Spring Boot is the platform without its
 server functionality.
-# Design
+## Design
 * It will be a simple process that will connect to the server, will take the list of available files
 * The process will take from the list the newest one and will download it by chunks
 * It WILL NOT support re-downloading for the failed file. However, it is not a problem to extend it to behave in such a
